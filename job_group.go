@@ -38,6 +38,10 @@ type JonGroup interface {
 }
 
 func NewGroup(options *JobGroupOptions, jobs ...Job) JonGroup {
+	if options == nil {
+		options = &JobGroupOptions{}
+	}
+
 	g := &jobGroup{
 		jobs:         jobs,
 		isConcurrent: options.IsConcurrent,
@@ -61,15 +65,16 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 
 	for i := range g.jobs {
 		if !g.isConcurrent {
-			err := g.runJobWithCtx(ctx, g.jobs[i])
+			j := g.jobs[i]
+			err := g.runJobWithCtx(ctx, j)
+
+			errChan <- err
 			if err != nil {
 				g.handleError(ctx, err)
 				return err
 			}
 
-			errChan <- err
 			g.wg.Done()
-
 			continue
 		}
 
@@ -80,8 +85,8 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 		}(g.jobs[i])
 	}
 
-	g.wg.Wait()
 	close(errChan)
+	g.wg.Wait()
 
 	for i := 0; i < len(g.jobs); i++ {
 		if v := <-errChan; v != nil {
@@ -96,15 +101,15 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 }
 
 func (g *jobGroup) handleError(ctx context.Context, err error) {
-	// if g.onError != nil {
-	// g.onError(ctx, err)
-	// }
+	if g.onError != nil {
+		g.onError(ctx, err)
+	}
 }
 
 func (g *jobGroup) handleSuccess(ctx context.Context) {
-	// if g.onSuccess != nil {
-	// g.onSuccess(ctx)
-	// }
+	if g.onSuccess != nil {
+		g.onSuccess(ctx)
+	}
 }
 
 func (g *jobGroup) runJobWithCtx(ctx context.Context, j Job) error {
@@ -118,7 +123,8 @@ func (g *jobGroup) runJobWithCtx(ctx context.Context, j Job) error {
 			return err
 		}
 
-		if j.RetryWithCtx(ctx) == nil {
+		e := j.RetryWithCtx(ctx)
+		if e == nil {
 			return nil
 		}
 	}
@@ -166,6 +172,8 @@ func (g *jobGroup) RunWithCtxAndTimeout(ctx context.Context) error {
 			return v
 		}
 	}
+
+	g.handleSuccess(ctx)
 
 	return nil
 }

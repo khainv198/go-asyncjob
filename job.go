@@ -8,7 +8,7 @@ import (
 const (
 	defaultMaxRetry                 = 3
 	defaultMaxTimeout time.Duration = 30 * time.Second
-	defaultDelay      time.Duration = 5 * time.Second
+	defaultDelay      time.Duration = 1 * time.Second
 )
 
 type JobHandler func(ctx context.Context) error
@@ -58,6 +58,10 @@ type Job interface {
 }
 
 func NewJob(handler JobHandler, cfg *JobConfig) Job {
+	if cfg == nil {
+		cfg = &JobConfig{}
+	}
+
 	j := &job{
 		name:       cfg.Name,
 		handler:    handler,
@@ -131,7 +135,7 @@ func (j *job) ExecuteWithTimeout() error {
 }
 
 func (j *job) RetryWithCtx(ctx context.Context) error {
-	if j.retryIndex >= j.maxRetry {
+	if j.retryIndex >= j.maxRetry-1 {
 		j.state = StateRetryFailed
 		return nil
 	}
@@ -145,7 +149,7 @@ func (j *job) RetryWithCtx(ctx context.Context) error {
 		return err
 	}
 
-	if j.retryIndex == j.maxRetry {
+	if j.retryIndex == j.maxRetry-1 {
 		j.state = StateRetryFailed
 	} else {
 		j.state = StateFailed
