@@ -96,15 +96,15 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 }
 
 func (g *jobGroup) handleError(ctx context.Context, err error) {
-	if g.onError != nil {
-		g.onError(ctx, err)
-	}
+	// if g.onError != nil {
+	// g.onError(ctx, err)
+	// }
 }
 
 func (g *jobGroup) handleSuccess(ctx context.Context) {
-	if g.onSuccess != nil {
-		g.onSuccess(ctx)
-	}
+	// if g.onSuccess != nil {
+	// g.onSuccess(ctx)
+	// }
 }
 
 func (g *jobGroup) runJobWithCtx(ctx context.Context, j Job) error {
@@ -196,7 +196,7 @@ func (g *jobGroup) RunWithTimeout() error {
 }
 
 func (g *jobGroup) BackgroundRunWitCtx(ctx context.Context) {
-	var wg *sync.WaitGroup
+	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
@@ -214,7 +214,7 @@ func (g *jobGroup) BackgroundRun() {
 }
 
 func (g *jobGroup) BackgroundRunWitCtxAndTimeout(ctx context.Context) {
-	var wg *sync.WaitGroup
+	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
