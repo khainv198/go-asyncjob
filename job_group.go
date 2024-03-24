@@ -85,8 +85,8 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 		}(g.jobs[i])
 	}
 
-	close(errChan)
 	g.wg.Wait()
+	close(errChan)
 
 	for i := 0; i < len(g.jobs); i++ {
 		if v := <-errChan; v != nil {
@@ -204,17 +204,11 @@ func (g *jobGroup) RunWithTimeout() error {
 }
 
 func (g *jobGroup) BackgroundRunWitCtx(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	go func() {
 		defer recovery()
-		defer wg.Done()
 
 		g.RunWithCtx(ctx)
 	}()
-
-	wg.Wait()
 }
 
 func (g *jobGroup) BackgroundRun() {
@@ -222,17 +216,11 @@ func (g *jobGroup) BackgroundRun() {
 }
 
 func (g *jobGroup) BackgroundRunWitCtxAndTimeout(ctx context.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	go func() {
 		defer recovery()
-		defer wg.Done()
 
 		g.RunWithCtxAndTimeout(ctx)
 	}()
-
-	wg.Wait()
 }
 
 func (g *jobGroup) BackgroundRunWithTimeout() {

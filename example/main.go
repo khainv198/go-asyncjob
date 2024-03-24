@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
+	"time"
 
 	"github.com/khainv198/go-asyncjob"
 )
@@ -15,8 +15,8 @@ func main() {
 	}, nil)
 
 	job2 := asyncjob.NewJob(func(ctx context.Context) error {
-		// log.Print("i am job 2")
-		return errors.New("job 2 error")
+		log.Print("i am job 2")
+		return nil
 	}, nil)
 
 	job3 := asyncjob.NewJob(func(ctx context.Context) error {
@@ -24,5 +24,7 @@ func main() {
 		return nil
 	}, nil)
 
-	asyncjob.NewGroup(nil, job1, job2, job3).BackgroundRun()
+	asyncjob.NewGroup(&asyncjob.JobGroupOptions{IsConcurrent: true}, job1, job2, job3).BackgroundRun()
+
+	time.Sleep(10 * time.Second)
 }
