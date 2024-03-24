@@ -6,15 +6,23 @@ import (
 	"time"
 )
 
+type OnJobGroupRunSuccess func(context.Context)
+
+type OnJobGroupRunError func(context.Context, error)
+
 type jobGroup struct {
 	jobs         []Job
 	isConcurrent bool
 	wg           *sync.WaitGroup
 	maxTimeout   time.Duration
+	onSuccess    OnJobGroupRunSuccess
+	onError      OnJobGroupRunError
 }
 
 type JobGroupOptions struct {
 	IsConcurrent bool
+	OnSuccess    OnJobGroupRunSuccess
+	OnError      OnJobGroupRunError
 	MaxTimeout   time.Duration
 }
 
@@ -23,6 +31,10 @@ type JonGroup interface {
 	Run() error
 	RunWithCtxAndTimeout(ctx context.Context) error
 	RunWithTimeout() error
+	BackgroundRunWitCtx(ctx context.Context)
+	BackgroundRun()
+	BackgroundRunWitCtxAndTimeout(ctx context.Context)
+	BackgroundRunWithTimeout()
 }
 
 func NewGroup(options *JobGroupOptions, jobs ...Job) JonGroup {
@@ -31,6 +43,8 @@ func NewGroup(options *JobGroupOptions, jobs ...Job) JonGroup {
 		isConcurrent: options.IsConcurrent,
 		maxTimeout:   options.MaxTimeout,
 		wg:           new(sync.WaitGroup),
+		onSuccess:    options.OnSuccess,
+		onError:      options.OnError,
 	}
 
 	if g.maxTimeout == 0 {
@@ -49,6 +63,7 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 		if !g.isConcurrent {
 			err := g.runJobWithCtx(ctx, g.jobs[i])
 			if err != nil {
+				g.handleError(ctx, err)
 				return err
 			}
 
@@ -70,11 +85,26 @@ func (g *jobGroup) RunWithCtx(ctx context.Context) error {
 
 	for i := 0; i < len(g.jobs); i++ {
 		if v := <-errChan; v != nil {
+			g.handleError(ctx, v)
 			return v
 		}
 	}
 
+	g.handleSuccess(ctx)
+
 	return nil
+}
+
+func (g *jobGroup) handleError(ctx context.Context, err error) {
+	if g.onError != nil {
+		g.onError(ctx, err)
+	}
+}
+
+func (g *jobGroup) handleSuccess(ctx context.Context) {
+	if g.onSuccess != nil {
+		g.onSuccess(ctx)
+	}
 }
 
 func (g *jobGroup) runJobWithCtx(ctx context.Context, j Job) error {
@@ -110,6 +140,7 @@ func (g *jobGroup) RunWithCtxAndTimeout(ctx context.Context) error {
 		if !g.isConcurrent {
 			err := g.runJobWithCtxAndTimeout(gCtx, g.jobs[i])
 			if err != nil {
+				g.handleError(ctx, err)
 				return err
 			}
 
@@ -131,6 +162,7 @@ func (g *jobGroup) RunWithCtxAndTimeout(ctx context.Context) error {
 
 	for i := 0; i < len(g.jobs); i++ {
 		if v := <-errChan; v != nil {
+			g.handleError(ctx, v)
 			return v
 		}
 	}
@@ -161,4 +193,40 @@ func (g *jobGroup) runJobWithCtxAndTimeout(ctx context.Context, j Job) error {
 
 func (g *jobGroup) RunWithTimeout() error {
 	return g.RunWithCtxAndTimeout(context.Background())
+}
+
+func (g *jobGroup) BackgroundRunWitCtx(ctx context.Context) {
+	var wg *sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer recovery()
+		defer wg.Done()
+
+		g.RunWithCtx(ctx)
+	}()
+
+	wg.Wait()
+}
+
+func (g *jobGroup) BackgroundRun() {
+	g.BackgroundRunWitCtx(context.Background())
+}
+
+func (g *jobGroup) BackgroundRunWitCtxAndTimeout(ctx context.Context) {
+	var wg *sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer recovery()
+		defer wg.Done()
+
+		g.RunWithCtxAndTimeout(ctx)
+	}()
+
+	wg.Wait()
+}
+
+func (g *jobGroup) BackgroundRunWithTimeout() {
+	g.BackgroundRunWitCtxAndTimeout(context.Background())
 }
