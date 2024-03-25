@@ -2,7 +2,6 @@ package asyncjob
 
 import (
 	"context"
-	"log"
 	"time"
 )
 
@@ -57,6 +56,8 @@ type Job interface {
 	SetMaxTimeout(maxTimeout time.Duration)
 	SetMaxRetry(retry int)
 	SerDelay(delay time.Duration)
+	GetRetryIndex() int
+	GetMaxRetry() int
 }
 
 func NewJob(handler JobHandler, cfg *JobConfig) Job {
@@ -143,7 +144,6 @@ func (j *job) RetryWithCtx(ctx context.Context) error {
 	}
 
 	j.retryIndex += 1
-	log.Printf("retry %s index %d", j.name, j.retryIndex)
 	time.Sleep(j.delay)
 
 	err := j.ExecuteWithCtx(ctx)
@@ -213,4 +213,12 @@ func (j *job) SetMaxRetry(retry int) {
 
 func (j *job) SerDelay(delay time.Duration) {
 	j.delay = delay
+}
+
+func (j *job) GetRetryIndex() int {
+	return j.retryIndex
+}
+
+func (j *job) GetMaxRetry() int {
+	return j.maxRetry
 }

@@ -118,6 +118,10 @@ func (g *jobGroup) runJobWithCtx(ctx context.Context, j Job) error {
 		return nil
 	}
 
+	if j.GetMaxRetry() == 0 {
+		return err
+	}
+
 	for {
 		if j.GetSate() == StateRetryFailed {
 			return err
