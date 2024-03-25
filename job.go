@@ -2,6 +2,7 @@ package asyncjob
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
@@ -29,6 +30,7 @@ type JobConfig struct {
 	MaxTimeout time.Duration
 	MaxRetry   int
 	Delay      time.Duration
+	NoRetry    bool
 }
 
 type job struct {
@@ -76,7 +78,7 @@ func NewJob(handler JobHandler, cfg *JobConfig) Job {
 		j.maxTimeout = defaultMaxTimeout
 	}
 
-	if j.maxRetry == 0 {
+	if j.maxRetry == 0 && !cfg.NoRetry {
 		j.maxRetry = defaultMaxRetry
 	}
 
@@ -141,6 +143,7 @@ func (j *job) RetryWithCtx(ctx context.Context) error {
 	}
 
 	j.retryIndex += 1
+	log.Printf("retry %s index %d", j.name, j.retryIndex)
 	time.Sleep(j.delay)
 
 	err := j.ExecuteWithCtx(ctx)
